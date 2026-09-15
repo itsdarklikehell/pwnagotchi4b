@@ -275,44 +275,67 @@ def fetch_handshakes(cfg: Dict[str, Any], limit: int = 20) -> Dict[str, Any]:
 
 
 # ---- command handlers -------------------------------------------------------
+_HANDLERS: Dict[str, Any] = {}
+
+
+def _handle_get_status(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return {"name": "pwnagotchi_state", "data": get_status(cfg)}
+
+
+def _handle_fetch_handshakes(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return {"name": "handshake_list", "data": fetch_handshakes(cfg, int(args.get("limit", 20)))}
+
+
+def _handle_set_mode(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    mode = str(args.get("mode", "auto")).lower()
+    cmd = "restart-auto" if mode == "auto" else "restart-manual"
+    return {"name": "ack", "data": {"mode": mode, **_fancyserver_send(cmd, cfg)}}
+
+
+def _handle_register(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return {"name": "agent_card", "data": agent_card(cfg)}
+
+
+def _handle_reboot_restart(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    mode = str(args.get("mode", "auto")).lower()
+    cmd = "reboot-auto" if mode == "auto" else "reboot-manual"
+    return {"name": "ack", "data": {"command": "reboot", **_fancyserver_send(cmd, cfg)}}
+
+
+def _handle_shutdown(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return {"name": "ack", "data": {"command": "shutdown", **_fancyserver_send("shutdown", cfg)}}
+
+
+def _handle_toggle_plugin(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    name = args.get("name")
+    enabled = bool(args.get("enabled", True))
+    if not name:
+        return {"name": "plugin_status", "data": {"error": "missing plugin name"}}
+    cmd = f"plugin {name} {enabled}"
+    return {"name": "plugin_status", "data": {"name": name, "enabled": enabled,
+                                              **_fancyserver_send(cmd, cfg)}}
+
+
+_HANDLERS = {
+    "get_status": _handle_get_status,
+    "fetch_handshakes": _handle_fetch_handshakes,
+    "set_mode": _handle_set_mode,
+    "register": _handle_register,
+    "reboot": _handle_reboot_restart,
+    "restart": _handle_reboot_restart,
+    "shutdown": _handle_shutdown,
+    "toggle_plugin": _handle_toggle_plugin,
+}
+
+
 def do_action(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """Dispatch an A2A action to local effect. Returns an artifact-shaped dict."""
+    """Dispatch an A2A action to local effect via handler table. Returns artifact-shaped dict."""
     args = args or {}
     LOG.info("action=%s args=%s", action, args)
-
-    if action == "get_status":
-        return {"name": "pwnagotchi_state", "data": get_status(cfg)}
-
-    if action == "fetch_handshakes":
-        return {"name": "handshake_list", "data": fetch_handshakes(cfg, int(args.get("limit", 20)))}
-
-    if action == "set_mode":
-        mode = str(args.get("mode", "auto")).lower()
-        cmd = "restart-auto" if mode == "auto" else "restart-manual"
-        return {"name": "ack", "data": {"mode": mode, **_fancyserver_send(cmd, cfg)}}
-
-    if action in ("reboot", "restart"):
-        mode = str(args.get("mode", "auto")).lower()
-        cmd = "reboot-auto" if mode == "auto" else "reboot-manual"
-        return {"name": "ack", "data": {"command": "reboot", **_fancyserver_send(cmd, cfg)}}
-
-    if action == "shutdown":
-        return {"name": "ack", "data": {"command": "shutdown", **_fancyserver_send("shutdown", cfg)}}
-
-    if action == "toggle_plugin":
-        name = args.get("name")
-        enabled = bool(args.get("enabled", True))
-        if not name:
-            return {"name": "plugin_status", "data": {"error": "missing plugin name"}}
-        cmd = f"plugin {name} {enabled}"
-        return {"name": "plugin_status", "data": {"name": name, "enabled": enabled,
-                                                  **_fancyserver_send(cmd, cfg)}}
-
-    if action == "register":
-        # handled at registration time; if reached via message/send, just echo card
-        return {"name": "agent_card", "data": agent_card(cfg)}
-
-    return {"name": "error", "data": {"error": f"unknown action: {action}"}}
+    handler = _HANDLERS.get(action)
+    if handler is None:
+        return {"name": "error", "data": {"error": f"unknown action: {action}"}}
+    return handler(action, args, cfg)
 
 
 # ----------------------------------------------------------------------------

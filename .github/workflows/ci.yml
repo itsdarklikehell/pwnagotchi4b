@@ -1,39 +1,10 @@
 name: CI
-
 on:
   push:
-    branches: [main]
+    branches: ["main","main","master"]
   pull_request:
-    branches: [main]
-
+    branches: ["main","main","master"]
+  workflow_dispatch:
 jobs:
-  unit-tests:
-    name: Userspace unit tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run tests
-        run: make test
-
-  vm-integration:
-    name: VM integration (QEMU/KVM)
-    runs-on: ubuntu-latest
-    # KVM only works on larger runners; request it explicitly.
-    services: {}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install QEMU
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 curl
-      - name: Enable KVM
-        run: |
-          # GitHub's ubuntu-latest runners expose /dev/kvm.
-          if [ ! -e /dev/kvm ]; then
-            echo "::warning::/dev/kvm unavailable — skipping VM test"
-            exit 0
-          fi
-          ls -l /dev/kvm
-      - name: Run VM integration test
-        timeout-minutes: 15
-        run: make vm-test
+  ci:
+    uses: itsdarklikehell/ci-templates/.github/workflows/ci-python.yml@v1

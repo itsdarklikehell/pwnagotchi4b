@@ -12,7 +12,7 @@
 SHELL := /usr/bin/env bash
 PYTHON ?= python3
 BASH_TESTS := tests/test_firstboot.sh tests/test_watchdog.sh
-PY_TESTS   := tests/test_display_import.py tests/test_a2a_roundtrip.py
+PY_TESTS   := tests/test_display_import.py tests/test_a2a_roundtrip.py tests/test_register_endpoint.py tests/test_metrics_endpoint.py tests/test_reboot_action.py
 
 .PHONY: all test vm-test ci clean
 
