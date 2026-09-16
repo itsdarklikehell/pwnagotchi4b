@@ -38,6 +38,7 @@ import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Dict, Optional
+import threading
 
 LOG = logging.getLogger("pwnagotchi_a2a")
 logging.basicConfig(
@@ -629,9 +630,63 @@ def main(argv=None) -> int:
         return 0
 
     LOG.info("Starting pwnagotchi A2A peer (simulate=%s)", SIMULATE)
+    if SIMULATE and not CONFIG.get("a2a_token"):
+        LOG.info("simulate mode without token — starting heartbeat for local verification")
+        start_heartbeat(CONFIG, interval_sec=5.0)
     serve(CONFIG)
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
+
+# ----------------------------------------------------------------------------
+# Periodic heartbeat — push get_status to configured peers (ADR open question)
+# ----------------------------------------------------------------------------
+
+_HEARTBEAT_TASK: Optional[threading.Thread] = None
+
+
+def start_heartbeat(cfg: Dict[str, Any], interval_sec: float = 300.0) -> None:
+    """Start a background thread that pushes get_status to each peer every N seconds."""
+    global _HEARTBEAT_TASK
+    if _HEARTBEAT_TASK is not None and _HEARTBEAT_TASK.is_alive():
+        LOG.info("heartbeat already running, skip start")
+        return
+    _HEARTBEAT_TASK = threading.Thread(target=_heartbeat_loop, args=(cfg, interval_sec), daemon=True)
+    _HEARTBEAT_TASK.start()
+    LOG.info("heartbeat started, interval=%.0fs", interval_sec)
+
+
+def stop_heartbeat() -> None:
+    global _HEARTBEAT_TASK
+    if _HEARTBEAT_TASK is None:
+        return
+    _HEARTBEAT_TASK = None
+    LOG.info("heartbeat stop requested")
+
+
+def _heartbeat_loop(cfg: Dict[str, Any], interval_sec: float) -> None:
+    while _HEARTBEAT_TASK is not None:
+        try:
+            _push_status_to_peers(cfg)
+        except Exception as exc:  # noqa: BLE001
+            LOG.warning("heartbeat tick failed: %s", exc)
+        time.sleep(interval_sec)
+
+
+def _push_status_to_peers(cfg: Dict[str, Any]) -> None:
+    status = get_status(cfg)
+    payload = json.dumps(status, default=str).encode()
+    for peer in cfg.get("peers", []):
+        url = peer.get("url", "").rstrip("/") + "/a2a/jsonrpc"
+        token = peer.get("token", "")
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        try:
+            import requests  # type: ignore
+            r = requests.post(url, data=payload, headers=headers, timeout=5)
+            LOG.debug("heartbeat -> %s: %s", peer.get("name"), r.status_code)
+        except Exception as exc:  # noqa: BLE001
+            LOG.warning("heartbeat -> %s failed: %s", peer.get("name"), exc)
