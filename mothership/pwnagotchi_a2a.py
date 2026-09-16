@@ -285,6 +285,35 @@ def _handle_get_status(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -
 def _handle_fetch_handshakes(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
     return {"name": "handshake_list", "data": fetch_handshakes(cfg, int(args.get("limit", 20)))}
 
+def _handle_fetch_handshake_files(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Return captured handshake files with path, filename, size, age (real: pwnagotchi API, sim: synthetic)."""
+    limit = int(args.get("limit", 20))
+    if SIMULATE:
+        items = [
+            {
+                "path": f"/root/run/handshakes/handshake_{i}.pcap",
+                "filename": f"handshake_{i}.pcap",
+                "size": 4096 + i * 1024,
+                "age_days": i,
+            }
+            for i in range(min(limit, 5))
+        ]
+        return {"count": len(items), "items": items}
+    raw = _pwnagotchi_get("handshakes", cfg) or {}
+    items_in = raw.get("handshakes", []) if isinstance(raw, dict) else []
+    items = []
+    for h in items_in[:limit]:
+        if not isinstance(h, dict):
+            continue
+        items.append({
+            "path": h.get("path", ""),
+            "filename": h.get("filename", ""),
+            "size": h.get("size", 0),
+            "age_days": (datetime.now(timezone.utc) - datetime.fromisoformat(h["datetime"][:19]))
+                        .days if h.get("datetime") else 0,
+        })
+    return {"count": len(items), "items": items}
+
 
 def _handle_set_mode(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
     mode = str(args.get("mode", "auto")).lower()
