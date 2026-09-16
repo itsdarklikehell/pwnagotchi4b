@@ -298,7 +298,7 @@ def _handle_fetch_handshake_files(action: str, args: Dict[str, Any], cfg: Dict[s
             }
             for i in range(min(limit, 5))
         ]
-        return {"count": len(items), "items": items}
+        return {"name": "handshake_files", "data": {"count": len(items), "items": items}}
     raw = _pwnagotchi_get("handshakes", cfg) or {}
     items_in = raw.get("handshakes", []) if isinstance(raw, dict) else []
     items = []
@@ -312,7 +312,7 @@ def _handle_fetch_handshake_files(action: str, args: Dict[str, Any], cfg: Dict[s
             "age_days": (datetime.now(timezone.utc) - datetime.fromisoformat(h["datetime"][:19]))
                         .days if h.get("datetime") else 0,
         })
-    return {"count": len(items), "items": items}
+    return {"name": "handshake_files", "data": {"count": len(items), "items": items}}
 
 
 def _handle_set_mode(action: str, args: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
