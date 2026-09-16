@@ -110,6 +110,8 @@ def build_parser(description: str, client_name: str) -> argparse.ArgumentParser:
     sub.add_parser("get_status")
     p_hs = sub.add_parser("fetch_handshakes")
     p_hs.add_argument("--limit", type=int, default=20)
+    p_hf = sub.add_parser("fetch_handshake_files")
+    p_hf.add_argument("--limit", type=int, default=20)
     sub.add_parser("shutdown")
     sub.add_parser("reboot")
     p_mode = sub.add_parser("set_mode")
@@ -131,6 +133,8 @@ def resolve_cmd_args(action: str, args: argparse.Namespace) -> Dict[str, Any]:
     elif action == "toggle_plugin":
         cmd_args = {"name": args.name, "enabled": args.enabled}
     elif action == "fetch_handshakes":
+        cmd_args = {"limit": args.limit}
+    elif action == "fetch_handshake_files":
         cmd_args = {"limit": args.limit}
     elif action == "watch":
         pass  # handled specially
