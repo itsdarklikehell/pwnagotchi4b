@@ -3,14 +3,12 @@
 tests/test_a2a_roundtrip.py — REAL end-to-end verification of the A2A bridge.
 
 Starts the Pwnagotchi A2A endpoint in --simulate mode (no Pi needed), then
-exercises get_status / toggle_plugin / set_mode over the real JSON-RPC wire and
-asserts the replies. This is what proves the bridge actually works, not just
-that it imports.
-
-Run:
-    python3 tests/test_a2a_roundtrip.py
+exercises get_status / toggle_plugin / set_mode / fetch_handshake_files over the
+real JSON-RPC wire and asserts the replies.
 """
+
 from __future__ import annotations
+
 import json
 import subprocess
 import sys
@@ -24,7 +22,9 @@ MOTHERSHIP = __import__("os").path.join(HERE, "..", "mothership", "pwnagotchi_a2
 
 def post(url: str, payload: dict) -> dict:
     req = urllib.request.Request(
-        url, data=json.dumps(payload).encode(), method="POST",
+        url,
+        data=json.dumps(payload).encode(),
+        method="POST",
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=10) as r:
@@ -33,9 +33,11 @@ def post(url: str, payload: dict) -> dict:
 
 def main() -> int:
     import os
+
     proc = subprocess.Popen(
         [sys.executable, os.path.abspath(MOTHERSHIP), "--simulate"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     try:
         time.sleep(2.5)  # let the server bind
@@ -49,11 +51,17 @@ def main() -> int:
 
         # 2. get_status over JSON-RPC
         resp = post(base + "/a2a/jsonrpc", {
-            "jsonrpc": "2.0", "id": 1, "method": "message/send",
-            "params": {"message": {
-                "messageId": "t1", "contextId": "ctx-test", "role": "user",
-                "parts": [{"kind": "text", "text": json.dumps({"action": "get_status"})}],
-            }},
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "messageId": "t1",
+                    "contextId": "ctx-test",
+                    "role": "user",
+                    "parts": [{"kind": "text", "text": json.dumps({"action": "get_status"})}],
+                }
+            },
         })
         art = resp["result"]["artifacts"][0]["parts"][0]["text"]
         state = json.loads(art)
@@ -62,13 +70,24 @@ def main() -> int:
 
         # 3. toggle_plugin (action -> fancyserver mapping)
         resp = post(base + "/a2a/jsonrpc", {
-            "jsonrpc": "2.0", "id": 2, "method": "message/send",
-            "params": {"message": {
-                "messageId": "t2", "contextId": "ctx-test", "role": "user",
-                "parts": [{"kind": "text",
-                           "text": json.dumps({"action": "toggle_plugin",
-                                                "args": {"name": "fancygotchi", "enabled": True}})}],
-            }},
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "messageId": "t2",
+                    "contextId": "ctx-test",
+                    "role": "user",
+                    "parts": [
+                        {
+                            "kind": "text",
+                            "text": json.dumps(
+                                {"action": "toggle_plugin", "args": {"name": "fancygotchi", "enabled": True}}
+                            ),
+                        }
+                    ],
+                }
+            },
         })
         art = resp["result"]["artifacts"][0]["parts"][0]["text"]
         plug = json.loads(art)
@@ -79,18 +98,59 @@ def main() -> int:
 
         # 4. set_mode
         resp = post(base + "/a2a/jsonrpc", {
-            "jsonrpc": "2.0", "id": 3, "method": "message/send",
-            "params": {"message": {
-                "messageId": "t3", "contextId": "ctx-test", "role": "user",
-                "parts": [{"kind": "text",
-                           "text": json.dumps({"action": "set_mode", "args": {"mode": "manual"}})}],
-            }},
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "messageId": "t3",
+                    "contextId": "ctx-test",
+                    "role": "user",
+                    "parts": [
+                        {
+                            "kind": "text",
+                            "text": json.dumps(
+                                {"action": "set_mode", "args": {"mode": "manual"}}
+                            ),
+                        }
+                    ],
+                }
+            },
         })
         art = resp["result"]["artifacts"][0]["parts"][0]["text"]
         mode = json.loads(art)
         # The artifact text is the inner 'data' payload: {"mode":..., "command":..., ...}
         assert "restart-manual" in mode["command"], mode
         print("[ok] set_mode manual -> fancyserver cmd:", mode["command"])
+
+        # 5. fetch_handshake_files (path, filename, size, age)
+        resp = post(base + "/a2a/jsonrpc", {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "messageId": "t4",
+                    "contextId": "ctx-test",
+                    "role": "user",
+                    "parts": [
+                        {
+                            "kind": "text",
+                            "text": json.dumps(
+                                {"action": "fetch_handshake_files", "args": {"limit": 3}}
+                            ),
+                        }
+                    ],
+                }
+            },
+        })
+        art = resp["result"]["artifacts"][0]["parts"][0]["text"]
+        hf = json.loads(art)
+        assert hf["count"] == 3, hf
+        assert hf["items"][0]["path"].startswith("/root/run/handshakes/"), hf
+        assert hf["items"][0]["filename"] == "handshake_0.pcap", hf
+        assert hf["items"][0]["size"] == 4096, hf
+        print("[ok] fetch_handshake_files -> count=%d, item0=%s" % (hf["count"], hf["items"][0]["filename"]))
 
         print("\nALL A2A ROUND-TRIP TESTS PASSED")
         return 0

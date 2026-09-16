@@ -354,6 +354,7 @@ _HANDLERS = {
     "restart": _handle_reboot_restart,
     "shutdown": _handle_shutdown,
     "toggle_plugin": _handle_toggle_plugin,
+    "fetch_handshake_files": _handle_fetch_handshake_files,
 }
 
 
