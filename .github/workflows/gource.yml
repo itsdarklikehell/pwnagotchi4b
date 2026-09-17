@@ -14,12 +14,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
       - name: Gource
-        uses: nbprojekt/gource-action@v1
+        uses: nbprojekt/gource-action@57256d303c5a9a5e72ed92ba13e3e83c5ec8b257 # v1.3.0
         with:
           gource_resolution: 1080p
           gource_fps: 60
@@ -40,7 +40,7 @@ jobs:
             ./gource.mp4
 
       - name: Upload video
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ github.event.repository.name }}-gource
           path: ./gource.mp4
