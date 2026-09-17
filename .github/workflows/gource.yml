@@ -25,6 +25,15 @@ jobs:
           gource_fps: 60
           gource_filename_time: 3
           gource_hide_items: 'mouse,date,filenames'
+          gource_max_files: 1500
+          gource_highlight_users: true
+          gource_output_framerate: 30
+          gource_stop_at_end: true
+          gource_auto_skip_seconds: 0.1
+          gource_multi_sampling: true
+          gource_title: 'pwnagotchi4b development timeline'
+          gource_user_scale: 1.0
+          gource_seconds_per_day: 0.4
 
       - name: Install ffmpeg (runner)
         run: |
@@ -34,9 +43,10 @@ jobs:
       - name: Upscale + re-encode
         run: |
           ffmpeg -y -i ./gource/gource.mp4 \
-            -c:v libx264 -crf 19 -level 3.1 -preset slow -tune film \
-            -filter:v "scale=-1:720" -sws_flags lanczos \
-            -c:a aac -b:a 128k \
+            -c:v libx264 -crf 18 -level 4.1 -preset medium -tune film \
+            -filter:v "scale=-1:1080" -sws_flags lanczos \
+            -c:a aac -b:a 192k -ar 48000 \
+            -movflags +faststart \
             ./gource.mp4
 
       - name: Upload video
