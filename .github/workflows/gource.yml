@@ -31,9 +31,12 @@ jobs:
           gource_stop_at_end: true
           gource_auto_skip_seconds: 0.1
           gource_multi_sampling: true
-          gource_title: 'pwnagotchi4b development timeline'
+          gource_title: 'pwnagotchi4b development timeline — incl. /health endpoint (peer status)'
           gource_user_scale: 1.0
           gource_seconds_per_day: 0.4
+
+      # /health endpoint (feat: add detailed /health endpoint with peer status — 0773fa7)
+      # Returns server version, uptime, task counts, and peer list as JSON.
 
       - name: Install ffmpeg (runner)
         run: |
