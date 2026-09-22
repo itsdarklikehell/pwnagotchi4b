@@ -528,6 +528,10 @@ def _build_flask_app(cfg: Dict[str, Any]):
     def health():
         return {"ok": True, "simulate": SIMULATE}
 
+    @app.get("/health")
+    def health_detailed():
+        return Response(json.dumps(_health_detailed(cfg)), mimetype="application/json")
+
     @app.get("/metrics")
     def metrics():
         return Response(json.dumps(_metrics_snapshot()), mimetype="application/json")
@@ -553,6 +557,8 @@ def _build_stdlib_handler(cfg: Dict[str, Any]):
                 self._send(200, agent_card(cfg))
             elif self.path == "/healthz":
                 self._send(200, {"ok": True, "simulate": SIMULATE})
+            elif self.path == "/health":
+                self._send(200, _health_detailed(cfg))
             elif self.path == "/metrics":
                 self._send(200, _metrics_snapshot())
             else:
