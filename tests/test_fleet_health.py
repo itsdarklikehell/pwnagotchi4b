@@ -40,6 +40,9 @@ class FakeResponse:
     
     def decode(self):
         return self._read_data.decode()
+    
+    def getcode(self):
+        return self.status
 
 def test_check_tcp_port_open():
     """check_tcp moet True retourneren voor een open poort."""
@@ -72,7 +75,7 @@ def test_pwnagotchi_health_up():
     original_urlopen = urllib.request.urlopen
     try:
         def mock_urlopen(request, timeout=5):
-            url = request.full_url
+            url = request if isinstance(request, str) else request.full_url
             if "/healthz" in url:
                 return fake_resp
             raise urllib.error.URLError("unexpected URL")
@@ -97,7 +100,7 @@ def test_pwnagotchi_health_down():
     original_urlopen = urllib.request.urlopen
     try:
         def mock_urlopen(request, timeout=5):
-            url = request.full_url
+            url = request if isinstance(request, str) else request.full_url
             if "/healthz" in url:
                 raise urllib.error.URLError("connection refused")
             raise urllib.error.URLError("unexpected URL")

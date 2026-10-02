@@ -58,10 +58,22 @@ jobs:
           name: ${{ github.event.repository.name }}-gource
           path: ./gource.mp4
 
-      - name: Commit gource video
+      - name: Commit gource video to gource branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin gource-automation 2>/dev/null || true
+          git checkout -B gource-automation origin/gource-automation 2>/dev/null || git checkout -b gource-automation
           git add gource.mp4 || true
           git diff --staged --quiet || git commit -m "ci: update gource visualization (automated)"
-          git push
+          git push origin gource-automation
+
+      - name: Create or update PR to main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: gource-automation
+          base: main
+          title: "ci: update gource visualization (automated)"
+          body: "Automated Gource visualization update."
+          delete-branch: true
